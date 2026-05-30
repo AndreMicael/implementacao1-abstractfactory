@@ -1,22 +1,28 @@
 package abstractfactory;
 
 import abstractfactory.factory.GUIFactory;
-import abstractfactory.factory.MacFactory;
-import abstractfactory.factory.WindowsFactory;
+import abstractfactory.factory.GUIFactoryProvider;
 
 public class Main {
     public static void main(String[] args) {
-        GUIFactory factory;
+        try {
+            Plataforma plataforma = resolverPlataforma(args);
+            GUIFactory factory = GUIFactoryProvider.obterFabrica(plataforma);
 
-        String os = "Windows"; // pode trocar para "Mac"
+            Application app = new Application(factory);
+            app.render();
+        } catch (IllegalArgumentException e) {
+            System.err.println("Erro: " + e.getMessage());
+            System.err.println("Uso: java abstractfactory.Main [windows|mac]");
+            System.exit(1);
+        }
+    }
 
-        if (os.equalsIgnoreCase("Windows")) {
-            factory = new WindowsFactory();
-        } else {
-            factory = new MacFactory();
+    private static Plataforma resolverPlataforma(String[] args) {
+        if (args.length > 0) {
+            return Plataforma.from(args[0]);
         }
 
-        Application app = new Application(factory);
-        app.render();
+        return Plataforma.detectarSistema();
     }
 }

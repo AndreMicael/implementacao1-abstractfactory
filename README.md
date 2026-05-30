@@ -37,14 +37,17 @@ Assim, a criacao dos objetos fica isolada nas fabricas, respeitando o principio 
 ```text
 Implementacao java/
 |-- README.md
+|-- executar.ps1
 |-- out/
 `-- src/main/java/abstractfactory/
     |-- Main.java
     |-- Application.java
+    |-- Plataforma.java
     |-- factory/
     |   |-- GUIFactory.java
     |   |-- WindowsFactory.java
-    |   `-- MacFactory.java
+    |   |-- MacFactory.java
+    |   `-- GUIFactoryProvider.java
     `-- products/
         |-- Button.java
         |-- Checkbox.java
@@ -63,12 +66,12 @@ Implementacao java/
 ```text
 Main
   |
-  +-- define sistema operacional (Windows ou Mac)
+  +-- resolve plataforma (argumento ou deteccao automatica)
   |
-  +-- escolhe fabrica concreta
+  +-- GUIFactoryProvider.obterFabrica(plataforma)
   |         |
-  |         +-- WindowsFactory (se Windows)
-  |         `-- MacFactory     (se Mac)
+  |         +-- WindowsFactory (se windows)
+  |         `-- MacFactory     (se mac)
   |
   `-- new Application(factory)
             |
@@ -95,29 +98,34 @@ javac -version
 
 ## Como rodar
 
-### Compilacao e execucao
-
-No PowerShell, na pasta do projeto:
+### Opcao 1 - Script automatico (recomendado)
 
 ```powershell
 cd "C:\Users\andre\Desktop\Implementacao java"
 
-# Compilar
+# Detecta o SO automaticamente
+.\executar.ps1
+
+# Windows (explicito)
+.\executar.ps1 windows
+
+# Mac (explicito)
+.\executar.ps1 mac
+```
+
+### Opcao 2 - Compilacao e execucao manual
+
+```powershell
+cd "C:\Users\andre\Desktop\Implementacao java"
+
 javac -encoding UTF-8 -d out (Get-ChildItem -Recurse -Filter *.java src\main\java | ForEach-Object { $_.FullName })
 
-# Executar
+java "-Dfile.encoding=UTF-8" -cp out abstractfactory.Main windows
+java "-Dfile.encoding=UTF-8" -cp out abstractfactory.Main mac
 java "-Dfile.encoding=UTF-8" -cp out abstractfactory.Main
 ```
 
-### Trocar entre Windows e Mac
-
-No arquivo `Main.java`, altere a variavel `os`:
-
-```java
-String os = "Windows"; // troque para "Mac"
-```
-
-Recompile e execute novamente apos a alteracao.
+Sem argumento, o programa **detecta o sistema operacional** automaticamente via `System.getProperty("os.name")`.
 
 > **Importante:** use `-encoding UTF-8` na compilacao para evitar erros de encoding no Windows.
 
@@ -128,6 +136,7 @@ Recompile e execute novamente apos a alteracao.
 ### Windows
 
 ```text
+Interface Windows:
 Renderizando botao do Windows
 Renderizando checkbox do Windows
 ```
@@ -135,8 +144,16 @@ Renderizando checkbox do Windows
 ### Mac
 
 ```text
+Interface Mac:
 Renderizando botao do Mac
 Renderizando checkbox do Mac
+```
+
+### Argumento invalido
+
+```text
+Erro: Plataforma invalida: 'linux'. Use: windows ou mac.
+Uso: java abstractfactory.Main [windows|mac]
 ```
 
 ---
@@ -145,7 +162,9 @@ Renderizando checkbox do Mac
 
 ### Main
 
-Classe principal. Define qual sistema operacional sera simulado (`Windows` ou `Mac`), instancia a fabrica correspondente e delega a renderizacao para `Application`.
+Classe principal. Le o argumento da linha de comando (`windows` ou `mac`), obtem a fabrica via `GUIFactoryProvider` e delega a renderizacao para `Application`.
+
+Se nenhum argumento for passado, **detecta o SO automaticamente**.
 
 ### Application (cliente)
 
@@ -169,6 +188,17 @@ Fabricas concretas. Cada uma retorna uma familia consistente de componentes:
 | `WindowsFactory` | `WindowsButton` | `WindowsCheckbox` |
 | `MacFactory` | `MacButton` | `MacCheckbox` |
 
+### GUIFactoryProvider
+
+Centraliza a escolha da fabrica concreta com base no enum `Plataforma`. Evita que `Main` conheca `WindowsFactory` e `MacFactory` diretamente.
+
+### Plataforma
+
+Enum com os valores `WINDOWS` e `MAC`. Possui:
+
+- `from(String)` — valida o argumento da linha de comando
+- `detectarSistema()` — le `System.getProperty("os.name")` para escolher a plataforma
+
 ### Button e Checkbox (produtos abstratos)
 
 Interfaces que definem o comportamento comum dos componentes. Todas as implementacoes concretas possuem o metodo `paint()`, que exibe a renderizacao no console.
@@ -181,7 +211,8 @@ Para adicionar uma nova familia de interface (ex.: **Linux**):
 
 1. Criar produtos concretos em `products/linux/` (ex.: `LinuxButton`, `LinuxCheckbox`)
 2. Criar `LinuxFactory` implementando `GUIFactory`
-3. Adicionar a opcao no `Main` para instanciar `LinuxFactory`
+3. Adicionar `LINUX` no enum `Plataforma`
+4. Incluir o novo case em `GUIFactoryProvider.obterFabrica()`
 
 O cliente `Application` **nao precisa ser alterado**. Esse e um dos principais beneficios do padrao.
 
